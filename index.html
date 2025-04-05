@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SwitchBox - Universal File Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-bg: #0d0d2b;
+            --secondary-bg: #2b0d3d;
+            --accent-color: #ff00ff;
+            --secondary-accent: #00ffff;
+            --text-color: #ffffff;
+            --error-color: #ff5555;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--primary-bg), var(--secondary-bg));
+            color: var(--text-color);
+            min-height: 100vh;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+
+        #app-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        #intro-page {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            text-align: center;
+            animation: cosmicShift 15s infinite;
+        }
+
+        @keyframes cosmicShift {
+            0% { background: linear-gradient(135deg, var(--primary-bg), var(--secondary-bg)); }
+            50% { background: linear-gradient(135deg, var(--secondary-bg), #0d2b3d); }
+            100% { background: linear-gradient(135deg, var(--primary-bg), var(--secondary-bg)); }
+        }
+
+        .main-title {
+            font-size: clamp(2.5rem, 7vw, 3.5rem);
+            text-shadow: 0 0 15px var(--accent-color);
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .primary-btn {
+            padding: 15px 40px;
+            font-size: clamp(1rem, 3vw, 1.5rem);
+            background: var(--accent-color);
+            border: none;
+            border-radius: 50px;
+            color: var(--primary-bg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .primary-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 8px rgba(0,0,0,0.2);
+        }
+
+        .primary-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #main-page {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .conversion-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            width: 100%;
+            max-width: 1000px;
+            margin-bottom: 20px;
+        }
+
+        .conversion-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--secondary-accent);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .conversion-btn:hover, .conversion-btn.active {
+            background: var(--secondary-accent);
+            color: var(--primary-bg);
+            transform: scale(1.05);
+        }
+
+        .upload-section {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px dashed var(--accent-color);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #file-input {
+            margin: 15px 0;
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            border: 1px solid var(--secondary-accent);
+            border-radius: 5px;
+        }
+
+        .output-section {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--accent-color);
+            border-radius: 10px;
+            padding: 20px;
+            min-height: 100px;
+            margin-bottom: 20px;
+            word-break: break-word;
+        }
+
+        .download-btn {
+            background: var(--accent-color);
+            color: var(--text-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .download-btn:hover {
+            transform: scale(1.1);
+        }
+
+        #text-input-container, #url-input-container {
+            display: none;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        #text-input, #url-input {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-color);
+            border: 1px solid var(--secondary-accent);
+            border-radius: 5px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 16px;
+            touch-action: manipulation;
+        }
+
+        #text-input {
+            min-height: 150px;
+            max-height: 50vh;
+            resize: vertical;
+        }
+
+        .progress-container {
+            width: 100%;
+            height: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+            display: none;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background-color: var(--accent-color);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+
+        .error-message {
+            color: var(--error-color);
+            font-size: 0.9rem;
+            margin-top: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .conversion-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .conversion-btn {
+                font-size: 0.8rem;
+                padding: 10px;
+            }
+            
+            #text-input {
+                min-height: 120px;
+                max-height: 40vh;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .conversion-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .conversion-btn {
+                font-size: 0.7rem;
+                padding: 8px;
+            }
+
+            .main-title {
+                font-size: 2rem;
+            }
+
+            .primary-btn {
+                padding: 10px 30px;
+            }
+            
+            #text-input {
+                min-height: 100px;
+                max-height: 35vh;
+                padding: 8px;
+                font-size: 16px;
+            }
+            
+            #text-input-container, #url-input-container {
+                max-width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <div id="intro-page">
+            <h1 class="main-title">SwitchBox</h1>
+            <p>Universal File Converter</p>
+            <button class="primary-btn" onclick="showMainPage()">Start Converting</button>
+        </div>
+
+        <div id="main-page">
+            <div class="conversion-grid">
+                <div class="conversion-btn" data-type="word-to-pdf">Word to PDF</div>
+                <div class="conversion-btn" data-type="pdf-to-word">PDF to Word</div>
+                <div class="conversion-btn" data-type="jpg-to-png">JPG to PNG</div>
+                <div class="conversion-btn" data-type="png-to-jpg">PNG to JPG</div>
+                <div class="conversion-btn" data-type="image-to-jpg">Image to JPG</div>
+                <div class="conversion-btn" data-type="jpeg-to-jpg">JPEG to JPG</div>
+                <div class="conversion-btn" data-type="excel-to-pdf">Excel to PDF</div>
+                <div class="conversion-btn" data-type="pdf-to-text">PDF to Text</div>
+                <div class="conversion-btn" data-type="mp4-to-mp3">MP4 to MP3</div>
+                <div class="conversion-btn" data-type="html-to-pdf">HTML to PDF</div>
+                <div class="conversion-btn" data-type="image-to-text">Image to Text</div>
+                <div class="conversion-btn" data-type="csv-to-excel">CSV to Excel</div>
+                <div class="conversion-btn" data-type="gif-to-mp4">GIF to MP4</div>
+                <div class="conversion-btn" data-type="audio-to-wav">Audio to WAV</div>
+                <div class="conversion-btn" data-type="markdown-to-html">Markdown to HTML</div>
+                <div class="conversion-btn" data-type="text-to-speech">Text to Speech</div>
+                <div class="conversion-btn" data-type="video-to-gif">Video to GIF</div>
+                <div class="conversion-btn" data-type="text-to-pdf">Text to PDF</div>
+                <div class="conversion-btn" data-type="movie-url-to-mp4">Movie URL to MP4</div>
+            </div>
+
+            <div class="upload-section">
+                <input type="file" id="file-input">
+                <p id="file-type-hint">Select a conversion type first</p>
+                <button onclick="convertFile()" class="primary-btn">Convert</button>
+            </div>
+
+            <div id="text-input-container">
+                <textarea id="text-input" placeholder="Enter your text here to convert to PDF..."></textarea>
+                <button onclick="convertTextToPDF()" class="primary-btn">Create PDF</button>
+            </div>
+
+            <div id="url-input-container">
+                <input type="text" id="url-input" placeholder="Enter movie URL here...">
+                <div class="progress-container" id="progress-container">
+                    <div class="progress-bar" id="progress-bar"></div>
+                </div>
+                <button onclick="convertMovieUrl()" class="primary-btn" id="convert-url-btn">Convert to MP4</button>
+            </div>
+
+            <div class="output-section" id="output-section">
+                Conversion results will appear here
+            </div>
+
+            <button id="download-btn" class="download-btn" style="display:none;">Download</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.8.0/mammoth.browser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.0/marked.min.js"></script>
+    <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <script>
+        // Initialize FFmpeg
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        const ffmpeg = createFFmpeg({ log: true });
+        let ffmpegLoaded = false;
+
+        async function loadFFmpeg() {
+            if (!ffmpegLoaded) {
+                await ffmpeg.load();
+                ffmpegLoaded = true;
+            }
+        }
+
+        const conversionConfig = {
+            'jpeg-to-jpg': { 
+                input: '.jpeg', 
+                output: '.jpg', 
+                mime: 'image/jpeg',
+                convert: async (file) => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0);
+                            canvas.toBlob(blob => {
+                                if (blob) resolve(blob);
+                                else reject(new Error('Conversion to JPG failed'));
+                            }, 'image/jpeg', 0.9);
+                        };
+                        img.onerror = () => reject(new Error('Image load failed'));
+                        img.src = URL.createObjectURL(file);
+                    });
+                }
+            },
+
+            'image-to-jpg': { 
+                input: '.png,.webp,.gif,.bmp,.tiff', 
+                output: '.jpg', 
+                mime: 'image/jpeg',
+                convert: async (file) => {
+                    return new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            const canvas = document.createElement('canvas');
+                            canvas.width = img.width;
+                            canvas.height = img.height;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = 'white';
+                            ctx.fillRect(0, 0, canvas.width, canvas.height);
+                            ctx.drawImage(img, 0, 0);
+                            canvas.toBlob(blob => {
+                                if (blob) resolve(blob);
+                                else reject(new Error('Conversion to JPG failed'));
+                            }, 'image/jpeg', 0.9);
+                        };
+                        img.onerror = () => reject(new Error('Image load failed'));
+                        img.src = URL.createObjectURL(file);
+                    });
+                }
+            },
+
+            'text-to-pdf': {
+                input: 'text',
+                output: '.pdf',
+                mime: 'application/pdf',
+                convert: async (text) => {
+                    try {
+                        const { PDFDocument, rgb, StandardFonts } = PDFLib;
+                        const pdfDoc = await PDFDocument.create();
+                        let page = pdfDoc.addPage([595, 842]); // A4 size
+                        const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+                        const margin = 50;
+                        const fontSize = 12;
+                        const lineHeight = fontSize * 1.2;
+                        const pageWidth = page.getWidth() - 2 * margin;
+                        const maxLinesPerPage = Math.floor((page.getHeight() - 2 * margin) / lineHeight);
+
+                        const paragraphs = text.split('\n');
+                        let allLines = [];
+
+                        for (const paragraph of paragraphs) {
+                            const words = paragraph.trim().split(/\s+/);
+                            let currentLine = '';
+
+                            for (const word of words) {
+                                const testLine = currentLine ? `${currentLine} ${word}` : word;
+                                const width = font.widthOfTextAtSize(testLine, fontSize);
+
+                                if (width < pageWidth) {
+                                    currentLine = testLine;
+                                } else {
+                                    if (currentLine) allLines.push(currentLine);
+                                    currentLine = word;
+                                }
+                            }
+
+                            if (currentLine) allLines.push(currentLine);
+                            allLines.push('');
+                        }
+
+                        if (allLines[allLines.length - 1] === '') allLines.pop();
+
+                        let lineIndex = 0;
+                        let currentLineOnPage = 0;
+
+                        while (lineIndex < allLines.length) {
+                            if (currentLineOnPage >= maxLinesPerPage) {
+                                page = pdfDoc.addPage([595, 842]);
+                                currentLineOnPage = 0;
+                            }
+
+                            const line = allLines[lineIndex];
+                            if (line) {
+                                page.drawText(line, {
+                                    x: margin,
+                                    y: page.getHeight() - margin - (currentLineOnPage * lineHeight),
+                                    size: fontSize,
+                                    font: font,
+                                    color: rgb(0, 0, 0)
+                                });
+                            }
+                            lineIndex++;
+                            currentLineOnPage++;
+                        }
+
+                        const pdfBytes = await pdfDoc.save();
+                        return new Blob([pdfBytes], { type: 'application/pdf' });
+                    } catch (error) {
+                        throw new Error('Failed to create PDF: ' + error.message);
+                    }
+                }
+            },
+            
+            'movie-url-to-mp4': {
+                input: 'url',
+                output: '.mp4',
+                mime: 'video/mp4',
+                convert: async (url) => {
+                    return new Promise(async (resolve, reject) => {
+                        const progressBar = document.getElementById('progress-bar');
+                        const progressContainer = document.getElementById('progress-container');
+                        const outputSection = document.getElementById('output-section');
+                        const convertBtn = document.getElementById('convert-url-btn');
+
+                        progressContainer.style.display = 'block';
+                        convertBtn.disabled = true;
+
+                        try {
+                            // Validate URL
+                            new URL(url);
+
+                            // Load FFmpeg if not already loaded
+                            await loadFFmpeg();
+
+                            // Fetch the video file
+                            outputSection.textContent = 'Fetching video...';
+                            progressBar.style.width = '10%';
+                            const response = await fetch(url);
+                            if (!response.ok) throw new Error('Failed to fetch video');
+
+                            const videoData = await response.arrayBuffer();
+                            progressBar.style.width = '30%';
+
+                            // Write the input file to FFmpeg's virtual file system
+                            outputSection.textContent = 'Processing video...';
+                            ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(videoData));
+                            progressBar.style.width = '50%';
+
+                            // Convert to MP4 with H.264 video and AAC audio for maximum compatibility
+                            outputSection.textContent = 'Converting to MP4...';
+                            await ffmpeg.run(
+                                '-i', 'input.mp4',
+                                '-c:v', 'libx264', // H.264 video codec
+                                '-preset', 'medium',
+                                '-crf', '23',
+                                '-c:a', 'aac', // AAC audio codec
+                                '-b:a', '128k',
+                                '-movflags', '+faststart',
+                                'output.mp4'
+                            );
+                            progressBar.style.width = '80%';
+
+                            // Read the output file
+                            outputSection.textContent = 'Finalizing...';
+                            const data = ffmpeg.FS('readFile', 'output.mp4');
+                            const convertedBlob = new Blob([data.buffer], { type: 'video/mp4' });
+                            progressBar.style.width = '100%';
+
+                            // Clean up
+                            ffmpeg.FS('unlink', 'input.mp4');
+                            ffmpeg.FS('unlink', 'output.mp4');
+
+                            progressContainer.style.display = 'none';
+                            convertBtn.disabled = false;
+                            resolve(convertedBlob);
+                        } catch (error) {
+                            progressContainer.style.display = 'none';
+                            convertBtn.disabled = false;
+                            reject(new Error('Video conversion failed: ' + error.message));
+                        }
+                    });
+                }
+            }
+        };
+
+        let selectedConversionType = null;
+        let convertedFile = null;
+
+        document.querySelectorAll('.conversion-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.conversion-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                selectedConversionType = this.dataset.type;
+
+                const fileInputSection = document.querySelector('.upload-section');
+                const textInputContainer = document.getElementById('text-input-container');
+                const urlInputContainer = document.getElementById('url-input-container');
+                const outputSection = document.getElementById('output-section');
+                
+                fileInputSection.style.display = 'none';
+                textInputContainer.style.display = 'none';
+                urlInputContainer.style.display = 'none';
+                outputSection.textContent = 'Conversion results will appear here';
+                
+                if (selectedConversionType === 'text-to-pdf') {
+                    textInputContainer.style.display = 'block';
+                    setTimeout(() => {
+                        const textInput = document.getElementById('text-input');
+                        textInput.focus();
+                    }, 100);
+                } else if (selectedConversionType === 'movie-url-to-mp4') {
+                    urlInputContainer.style.display = 'block';
+                    setTimeout(() => {
+                        const urlInput = document.getElementById('url-input');
+                        urlInput.focus();
+                    }, 100);
+                } else {
+                    fileInputSection.style.display = 'block';
+                    const fileInput = document.getElementById('file-input');
+                    fileInput.accept = conversionConfig[selectedConversionType]?.input || '';
+                    document.getElementById('file-type-hint').textContent = 
+                        `Upload ${conversionConfig[selectedConversionType]?.input || 'file'}`;
+                }
+            });
+        });
+
+        async function convertMovieUrl() {
+            const urlInput = document.getElementById('url-input');
+            const outputSection = document.getElementById('output-section');
+            const downloadBtn = document.getElementById('download-btn');
+            const url = urlInput.value.trim();
+            
+            if (!url) {
+                outputSection.textContent = 'Please enter a valid movie URL';
+                return;
+            }
+            
+            try {
+                downloadBtn.style.display = 'none';
+                const config = conversionConfig['movie-url-to-mp4'];
+                convertedFile = await config.convert(url);
+                outputSection.textContent = 'Conversion complete! Ready to download.';
+                downloadBtn.style.display = 'block';
+                downloadBtn.onclick = () => {
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = URL.createObjectURL(convertedFile);
+                    downloadLink.download = `movie${config.output}`;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                };
+            } catch (error) {
+                outputSection.textContent = `Conversion failed: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        async function convertTextToPDF() {
+            const textInput = document.getElementById('text-input');
+            const outputSection = document.getElementById('output-section');
+            const downloadBtn = document.getElementById('download-btn');
+            const text = textInput.value.trim();
+
+            if (!text) {
+                outputSection.textContent = 'Please enter some text to convert';
+                return;
+            }
+
+            try {
+                outputSection.textContent = 'Creating PDF...';
+                convertedFile = await conversionConfig['text-to-pdf'].convert(text);
+                outputSection.textContent = 'PDF creation successful!';
+                downloadBtn.style.display = 'block';
+                downloadBtn.onclick = () => {
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = URL.createObjectURL(convertedFile);
+                    downloadLink.download = 'converted.pdf';
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                };
+            } catch (error) {
+                outputSection.textContent = `PDF creation failed: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        async function convertFile() {
+            const fileInput = document.getElementById('file-input');
+            const outputSection = document.getElementById('output-section');
+            const downloadBtn = document.getElementById('download-btn');
+
+            if (!selectedConversionType) {
+                outputSection.textContent = 'Please select a conversion type first';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            if (!file) {
+                outputSection.textContent = 'Please select a file';
+                return;
+            }
+
+            const config = conversionConfig[selectedConversionType];
+            const validExtensions = config.input.split(',');
+            const fileExt = '.' + file.name.split('.').pop().toLowerCase();
+            if (!validExtensions.some(ext => ext === fileExt)) {
+                outputSection.textContent = `Invalid file type. Please upload a ${config.input} file.`;
+                return;
+            }
+
+            try {
+                outputSection.textContent = 'Converting...';
+                convertedFile = await config.convert(file);
+                outputSection.textContent = `Conversion successful! File converted to ${config.output}`;
+                downloadBtn.style.display = 'block';
+                downloadBtn.onclick = () => {
+                    const downloadLink = document.createElement('a');
+                    downloadLink.href = URL.createObjectURL(convertedFile);
+                    downloadLink.download = `converted${config.output}`;
+                    document.body.appendChild(downloadLink);
+                    downloadLink.click();
+                    document.body.removeChild(downloadLink);
+                };
+            } catch (error) {
+                outputSection.textContent = `Conversion failed: ${error.message}`;
+                console.error(error);
+            }
+        }
+
+        function showMainPage() {
+            document.getElementById('intro-page').style.display = 'none';
+            document.getElementById('main-page').style.display = 'flex';
+        }
+
+        // Improve mobile input handling
+        document.addEventListener('touchmove', function(event) {
+            if (event.scale !== 1) event.preventDefault();
+        }, { passive: false });
+
+        document.getElementById('text-input').addEventListener('focus', function(event) {
+            document.body.style.touchAction = 'none';
+        });
+
+        document.getElementById('text-input').addEventListener('blur', function(event) {
+            document.body.style.touchAction = 'manipulation';
+        });
+
+        document.getElementById('url-input').addEventListener('focus', function(event) {
+            document.body.style.touchAction = 'none';
+        });
+
+        document.getElementById('url-input').addEventListener('blur', function(event) {
+            document.body.style.touchAction = 'manipulation';
+        });
+    </script>
+</body>
+</html>
