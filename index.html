@@ -12,7 +12,6 @@
             --accent-color: #ff00ff;
             --secondary-accent: #00ffff;
             --text-color: #ffffff;
-            --error-color: #ff5555;
         }
 
         * {
@@ -74,13 +73,6 @@
         .primary-btn:hover {
             transform: scale(1.05);
             box-shadow: 0 6px 8px rgba(0,0,0,0.2);
-        }
-
-        .primary-btn:disabled {
-            background: #555;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
         }
 
         #main-page {
@@ -206,10 +198,10 @@
             transition: width 0.3s ease;
         }
 
-        .error-message {
-            color: var(--error-color);
-            font-size: 0.9rem;
-            margin-top: 10px;
+        #video-preview {
+            max-width: 100%;
+            margin-top: 15px;
+            display: none;
         }
 
         @media (max-width: 768px) {
@@ -303,11 +295,12 @@
             </div>
 
             <div id="url-input-container">
-                <input type="text" id="url-input" placeholder="Enter movie URL here...">
+                <input type="text" id="url-input" placeholder="Enter video URL here (YouTube, Vimeo, etc.)">
                 <div class="progress-container" id="progress-container">
                     <div class="progress-bar" id="progress-bar"></div>
                 </div>
-                <button onclick="convertMovieUrl()" class="primary-btn" id="convert-url-btn">Convert to MP4</button>
+                <video id="video-preview" controls></video>
+                <button onclick="convertMovieUrl()" class="primary-btn">Convert to MP4</button>
             </div>
 
             <div class="output-section" id="output-section">
@@ -323,20 +316,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.0/marked.min.js"></script>
     <script src="https://unpkg.com/tesseract.js@v2.1.0/dist/tesseract.min.js"></script>
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <script>
-        // Initialize FFmpeg
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: true });
-        let ffmpegLoaded = false;
-
-        async function loadFFmpeg() {
-            if (!ffmpegLoaded) {
-                await ffmpeg.load();
-                ffmpegLoaded = true;
-            }
-        }
-
         const conversionConfig = {
             'jpeg-to-jpg': { 
                 input: '.jpeg', 
@@ -406,9 +386,11 @@
                         const pageWidth = page.getWidth() - 2 * margin;
                         const maxLinesPerPage = Math.floor((page.getHeight() - 2 * margin) / lineHeight);
 
+                        // Split text by newlines to handle paragraphs
                         const paragraphs = text.split('\n');
                         let allLines = [];
 
+                        // Process each paragraph for word wrapping
                         for (const paragraph of paragraphs) {
                             const words = paragraph.trim().split(/\s+/);
                             let currentLine = '';
@@ -426,11 +408,13 @@
                             }
 
                             if (currentLine) allLines.push(currentLine);
-                            allLines.push('');
+                            allLines.push(''); // Add an empty line for paragraph spacing
                         }
 
+                        // Remove the last empty line if it exists
                         if (allLines[allLines.length - 1] === '') allLines.pop();
 
+                        // Draw lines on pages
                         let lineIndex = 0;
                         let currentLineOnPage = 0;
 
@@ -441,7 +425,7 @@
                             }
 
                             const line = allLines[lineIndex];
-                            if (line) {
+                            if (line) { // Skip empty lines for drawing, but they still take up space
                                 page.drawText(line, {
                                     x: margin,
                                     y: page.getHeight() - margin - (currentLineOnPage * lineHeight),
@@ -457,6 +441,7 @@
                         const pdfBytes = await pdfDoc.save();
                         return new Blob([pdfBytes], { type: 'application/pdf' });
                     } catch (error) {
+                        console.error('PDF creation error:', error);
                         throw new Error('Failed to create PDF: ' + error.message);
                     }
                 }
@@ -467,68 +452,84 @@
                 output: '.mp4',
                 mime: 'video/mp4',
                 convert: async (url) => {
-                    return new Promise(async (resolve, reject) => {
+                    return new Promise((resolve, reject) => {
                         const progressBar = document.getElementById('progress-bar');
                         const progressContainer = document.getElementById('progress-container');
                         const outputSection = document.getElementById('output-section');
-                        const convertBtn = document.getElementById('convert-url-btn');
-
+                        const videoPreview = document.getElementById('video-preview');
+                        
+                        // Display progress bar
                         progressContainer.style.display = 'block';
-                        convertBtn.disabled = true;
-
+                        videoPreview.style.display = 'none';
+                        
+                        // Validate URL format
                         try {
-                            // Validate URL
                             new URL(url);
-
-                            // Load FFmpeg if not already loaded
-                            await loadFFmpeg();
-
-                            // Fetch the video file
-                            outputSection.textContent = 'Fetching video...';
-                            progressBar.style.width = '10%';
-                            const response = await fetch(url);
-                            if (!response.ok) throw new Error('Failed to fetch video');
-
-                            const videoData = await response.arrayBuffer();
-                            progressBar.style.width = '30%';
-
-                            // Write the input file to FFmpeg's virtual file system
-                            outputSection.textContent = 'Processing video...';
-                            ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(videoData));
-                            progressBar.style.width = '50%';
-
-                            // Convert to MP4 with H.264 video and AAC audio for maximum compatibility
-                            outputSection.textContent = 'Converting to MP4...';
-                            await ffmpeg.run(
-                                '-i', 'input.mp4',
-                                '-c:v', 'libx264', // H.264 video codec
-                                '-preset', 'medium',
-                                '-crf', '23',
-                                '-c:a', 'aac', // AAC audio codec
-                                '-b:a', '128k',
-                                '-movflags', '+faststart',
-                                'output.mp4'
-                            );
-                            progressBar.style.width = '80%';
-
-                            // Read the output file
-                            outputSection.textContent = 'Finalizing...';
-                            const data = ffmpeg.FS('readFile', 'output.mp4');
-                            const convertedBlob = new Blob([data.buffer], { type: 'video/mp4' });
-                            progressBar.style.width = '100%';
-
-                            // Clean up
-                            ffmpeg.FS('unlink', 'input.mp4');
-                            ffmpeg.FS('unlink', 'output.mp4');
-
+                        } catch (e) {
                             progressContainer.style.display = 'none';
-                            convertBtn.disabled = false;
-                            resolve(convertedBlob);
-                        } catch (error) {
-                            progressContainer.style.display = 'none';
-                            convertBtn.disabled = false;
-                            reject(new Error('Video conversion failed: ' + error.message));
+                            reject(new Error('Invalid URL format'));
+                            return;
                         }
+                        
+                        // Check if it's a YouTube URL
+                        if (url.includes('youtube.com') || url.includes('youtu.be')) {
+                            outputSection.textContent = 'YouTube videos require server-side processing. Please use a direct video URL.';
+                            progressContainer.style.display = 'none';
+                            reject(new Error('YouTube videos require server processing'));
+                            return;
+                        }
+                        
+                        // For direct video URLs
+                        outputSection.textContent = 'Fetching video...';
+                        
+                        // Create a new XMLHttpRequest
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('GET', url, true);
+                        xhr.responseType = 'blob';
+                        
+                        // Progress event
+                        xhr.onprogress = function(event) {
+                            if (event.lengthComputable) {
+                                const percentComplete = (event.loaded / event.total) * 100;
+                                progressBar.style.width = `${percentComplete}%`;
+                                outputSection.textContent = `Downloading: ${Math.round(percentComplete)}% complete`;
+                            }
+                        };
+                        
+                        // Load event
+                        xhr.onload = function() {
+                            if (xhr.status === 200) {
+                                const videoBlob = xhr.response;
+                                const videoUrl = URL.createObjectURL(videoBlob);
+                                
+                                // Verify the video can be played
+                                videoPreview.src = videoUrl;
+                                videoPreview.style.display = 'block';
+                                
+                                videoPreview.oncanplay = function() {
+                                    progressContainer.style.display = 'none';
+                                    outputSection.textContent = 'Video ready for download!';
+                                    resolve(videoBlob);
+                                };
+                                
+                                videoPreview.onerror = function() {
+                                    progressContainer.style.display = 'none';
+                                    reject(new Error('The URL does not point to a valid video file'));
+                                };
+                            } else {
+                                progressContainer.style.display = 'none';
+                                reject(new Error(`Failed to fetch video. Status: ${xhr.status}`));
+                            }
+                        };
+                        
+                        // Error event
+                        xhr.onerror = function() {
+                            progressContainer.style.display = 'none';
+                            reject(new Error('Network error while fetching video'));
+                        };
+                        
+                        // Send the request
+                        xhr.send();
                     });
                 }
             }
@@ -546,21 +547,23 @@
                 const fileInputSection = document.querySelector('.upload-section');
                 const textInputContainer = document.getElementById('text-input-container');
                 const urlInputContainer = document.getElementById('url-input-container');
-                const outputSection = document.getElementById('output-section');
                 
+                // Hide all input containers first
                 fileInputSection.style.display = 'none';
                 textInputContainer.style.display = 'none';
                 urlInputContainer.style.display = 'none';
-                outputSection.textContent = 'Conversion results will appear here';
                 
+                // Show the appropriate input container based on conversion type
                 if (selectedConversionType === 'text-to-pdf') {
                     textInputContainer.style.display = 'block';
+                    // Focus the textarea with a slight delay to ensure display is complete
                     setTimeout(() => {
                         const textInput = document.getElementById('text-input');
                         textInput.focus();
                     }, 100);
                 } else if (selectedConversionType === 'movie-url-to-mp4') {
                     urlInputContainer.style.display = 'block';
+                    // Focus the URL input field
                     setTimeout(() => {
                         const urlInput = document.getElementById('url-input');
                         urlInput.focus();
@@ -579,27 +582,32 @@
             const urlInput = document.getElementById('url-input');
             const outputSection = document.getElementById('output-section');
             const downloadBtn = document.getElementById('download-btn');
+            const videoPreview = document.getElementById('video-preview');
             const url = urlInput.value.trim();
             
             if (!url) {
-                outputSection.textContent = 'Please enter a valid movie URL';
+                outputSection.textContent = 'Please enter a valid video URL';
                 return;
             }
             
             try {
                 downloadBtn.style.display = 'none';
+                videoPreview.style.display = 'none';
                 const config = conversionConfig['movie-url-to-mp4'];
                 convertedFile = await config.convert(url);
-                outputSection.textContent = 'Conversion complete! Ready to download.';
-                downloadBtn.style.display = 'block';
-                downloadBtn.onclick = () => {
-                    const downloadLink = document.createElement('a');
-                    downloadLink.href = URL.createObjectURL(convertedFile);
-                    downloadLink.download = `movie${config.output}`;
-                    document.body.appendChild(downloadLink);
-                    downloadLink.click();
-                    document.body.removeChild(downloadLink);
-                };
+                
+                // Only show download button if we got a valid video
+                if (convertedFile) {
+                    downloadBtn.style.display = 'block';
+                    downloadBtn.onclick = () => {
+                        const downloadLink = document.createElement('a');
+                        downloadLink.href = URL.createObjectURL(convertedFile);
+                        downloadLink.download = `video${config.output}`;
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                    };
+                }
             } catch (error) {
                 outputSection.textContent = `Conversion failed: ${error.message}`;
                 console.error(error);
@@ -688,19 +696,21 @@
         document.addEventListener('touchmove', function(event) {
             if (event.scale !== 1) event.preventDefault();
         }, { passive: false });
-
+        
+        // Prevent zoom when focusing textarea
         document.getElementById('text-input').addEventListener('focus', function(event) {
             document.body.style.touchAction = 'none';
         });
-
+        
         document.getElementById('text-input').addEventListener('blur', function(event) {
             document.body.style.touchAction = 'manipulation';
         });
 
+        // Same for URL input
         document.getElementById('url-input').addEventListener('focus', function(event) {
             document.body.style.touchAction = 'none';
         });
-
+        
         document.getElementById('url-input').addEventListener('blur', function(event) {
             document.body.style.touchAction = 'manipulation';
         });
